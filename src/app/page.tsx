@@ -19,7 +19,7 @@ interface TodayData {
 }
 
 export default function HomePage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
   const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState('');
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -58,7 +58,7 @@ export default function HomePage() {
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchTodayData = async () => {
     try {
@@ -216,7 +216,7 @@ export default function HomePage() {
               </Button>
             </form>
             <p className="text-xs text-slate-500 text-center mt-4">
-              We'll send you a secure login link via email
+                               We&apos;ll send you a secure login link via email
             </p>
           </CardContent>
         </Card>
@@ -309,7 +309,7 @@ export default function HomePage() {
           {/* Today's Card */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-slate-800">Today's Card</h2>
+              <h2 className="text-2xl font-bold text-slate-800">Today&apos;s Card</h2>
               <div className="flex gap-2">
                 {todayData?.card && (
                   <Button
@@ -336,7 +336,7 @@ export default function HomePage() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4 mr-2" />
-                        Generate Today's Card
+                        Generate Today&apos;s Card
                       </>
                     )}
                   </Button>
@@ -357,7 +357,7 @@ export default function HomePage() {
                     <Sparkles className="w-8 h-8 text-slate-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-slate-800">Ready for today's inspiration?</h3>
+                                         <h3 className="font-semibold text-slate-800">Ready for today&apos;s inspiration?</h3>
                     <p className="text-slate-600 mt-1">
                       Generate your personalized {settings?.mode} card to get started.
                     </p>

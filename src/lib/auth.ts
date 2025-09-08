@@ -17,7 +17,7 @@ export async function updateSession(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value;
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
           request.cookies.set({
             name,
             value,
@@ -34,7 +34,7 @@ export async function updateSession(request: NextRequest) {
             ...options,
           });
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
           request.cookies.set({
             name,
             value: '',
@@ -66,7 +66,7 @@ export async function getUser() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
+        get() {
           // This will be handled by the middleware
           return undefined;
         },

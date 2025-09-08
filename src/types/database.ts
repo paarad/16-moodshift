@@ -52,7 +52,7 @@ export interface Telemetry {
   id: string;
   user_id: string;
   event_type: string;
-  event_data: Record<string, any> | null;
+  event_data: Record<string, unknown> | null;
   created_at: string;
 }
 

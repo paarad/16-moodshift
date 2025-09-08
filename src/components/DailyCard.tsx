@@ -183,7 +183,7 @@ Mantra: ${card.mantra}`;
           <h3 className="font-semibold text-slate-800">Mantra</h3>
           <div className="text-center p-4 bg-white/60 rounded-lg">
             <p className={cn("text-lg font-medium italic", colors.quote)}>
-              "{card.mantra}"
+              &ldquo;{card.mantra}&rdquo;
             </p>
           </div>
         </div>
