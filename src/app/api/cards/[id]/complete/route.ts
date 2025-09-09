@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
+
+// Demo user ID for testing without auth
+const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+// Use service role client to bypass RLS
+const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 interface Params {
   params: {
@@ -11,67 +19,24 @@ interface Params {
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const cardId = params.id;
 
-    // Verify the card belongs to the user
-    const { data: card, error: cardError } = await supabase
-      .from('cards')
-      .select('*')
-      .eq('id', cardId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (cardError || !card) {
-      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
-    }
-
-    // Mark the card as completed
-    const { data: updatedCard, error: updateError } = await supabase
+    // Update the card as completed
+    const { data: updatedCard, error } = await supabase
       .from('cards')
       .update({ completed: true })
       .eq('id', cardId)
+      .eq('user_id', DEMO_USER_ID)
       .select()
       .single();
 
-    if (updateError) {
-      throw updateError;
+    if (error) {
+      console.error('Database error:', error);
+      return NextResponse.json({ error: 'Card not found' }, { status: 404 });
     }
-
-    // Log telemetry
-    await supabase
-      .from('telemetry')
-      .insert({
-        user_id: user.id,
-        event_type: 'action_completed',
-        event_data: { 
-          card_id: cardId,
-          mode: card.mode,
-          action: card.action,
-        },
-      });
-
-    // Get updated streak info (triggered by database function)
-    const { data: streak } = await supabase
-      .from('streaks')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
 
     return NextResponse.json({
       card: updatedCard,
-      streak: {
-        current: streak?.current_streak || 0,
-        longest: streak?.longest_streak || 0,
-        lastCompletion: streak?.last_completion_date || null,
-      },
     });
 
   } catch (error) {

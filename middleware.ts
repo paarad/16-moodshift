@@ -1,8 +1,12 @@
 import { type NextRequest } from 'next/server';
-import { updateSession } from '@/lib/auth';
+// import { updateSession } from '@/lib/auth';
 
 export async function middleware(request: NextRequest) {
-  return await updateSession(request);
+  // Disabled for MVP demo - skip auth session updates
+  // return await updateSession(request);
+  
+  // Just pass through without auth checks for demo mode
+  return;
 }
 
 export const config = {

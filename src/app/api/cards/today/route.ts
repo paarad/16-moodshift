@@ -1,58 +1,37 @@
-import { NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 
-export async function GET() {
+// Demo user ID for testing without auth
+const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+// Use service role client to bypass RLS
+const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function GET(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get('mode') as 'zen' | 'warrior' || 'zen';
     const today = new Date().toISOString().split('T')[0];
-
-    // Get today's card
-    const { data: card, error: cardError } = await supabase
+    
+    // Get today's card for the specified mode
+    const { data: card, error } = await supabase
       .from('cards')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', DEMO_USER_ID)
       .eq('date', today)
+      .eq('mode', mode)
       .single();
 
-    if (cardError && cardError.code !== 'PGRST116') {
-      throw cardError;
+    if (error && error.code !== 'PGRST116') {
+      console.error('Database error:', error);
     }
-
-    // Get generation quota info
-    const { data: quota } = await supabase
-      .from('generation_quotas')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .single();
-
-    // Get streak info
-    const { data: streak } = await supabase
-      .from('streaks')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
+    
     return NextResponse.json({
       card: card || null,
-      quota: {
-        used: quota?.generations_used || 0,
-        max: quota?.max_generations || 2,
-      },
-      streak: {
-        current: streak?.current_streak || 0,
-        longest: streak?.longest_streak || 0,
-        lastCompletion: streak?.last_completion_date || null,
-      },
     });
 
   } catch (error) {

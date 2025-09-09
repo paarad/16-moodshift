@@ -1,53 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
-import { Database } from '@/types/database';
+
+// Demo settings data
+const demoSettings = {
+  id: 'demo-settings',
+  user_id: 'demo-user',
+  mode: 'zen',
+  audience: 'prefer_not_to_say',
+  tone: 'balanced',
+  delivery_time: '09:00:00',
+  timezone: 'UTC',
+  themes: ['focus', 'creativity'],
+  language: 'en',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+};
 
 export async function GET() {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Get user settings
-    const { data: settings, error: settingsError } = await supabase
-      .from('settings')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (settingsError) {
-      if (settingsError.code === 'PGRST116') {
-        // No settings found, create default settings
-        const { data: newSettings, error: createError } = await supabase
-          .from('settings')
-          .insert({
-            user_id: user.id,
-            mode: 'zen',
-            audience: 'prefer_not_to_say',
-            tone: 'balanced',
-            delivery_time: '09:00:00',
-            timezone: 'UTC',
-            themes: ['focus', 'creativity'],
-            language: 'en',
-          })
-          .select()
-          .single();
-
-        if (createError) {
-          throw createError;
-        }
-
-        return NextResponse.json({ settings: newSettings });
-      }
-      throw settingsError;
-    }
-
-    return NextResponse.json({ settings });
+    // Demo mode - return mock settings
+    return NextResponse.json({ settings: demoSettings });
 
   } catch (error) {
     console.error('Get settings error:', error);
@@ -60,14 +31,6 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createRouteHandlerClient<Database>({ cookies });
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
     const {
       mode,
@@ -104,39 +67,18 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid audience' }, { status: 400 });
     }
 
-    // Update settings
-    const { data: updatedSettings, error: updateError } = await supabase
-      .from('settings')
-      .update({
-        mode,
-        audience: audience || 'prefer_not_to_say',
-        tone,
-        delivery_time,
-        timezone,
-        themes,
-        language,
-      })
-      .eq('user_id', user.id)
-      .select()
-      .single();
-
-    if (updateError) {
-      throw updateError;
-    }
-
-    // Log telemetry
-    await supabase
-      .from('telemetry')
-      .insert({
-        user_id: user.id,
-        event_type: 'settings_updated',
-        event_data: { 
-          mode,
-          themes,
-          tone,
-          language,
-        },
-      });
+    // Demo mode - simulate update by returning updated settings
+    const updatedSettings = {
+      ...demoSettings,
+      mode,
+      audience: audience || 'prefer_not_to_say',
+      tone,
+      delivery_time,
+      timezone,
+      themes,
+      language,
+      updated_at: new Date().toISOString(),
+    };
 
     return NextResponse.json({ settings: updatedSettings });
 

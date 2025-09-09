@@ -1,170 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@supabase/supabase-js';
 import { generateCard } from '@/lib/ai';
 import { Database } from '@/types/database';
 
+// Demo user ID for testing without auth
+const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000';
+
+// Use service role client to bypass RLS
+const supabase = createClient<Database>(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const supabase = createServerClient<Database>(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
-          },
-        },
-      }
-    );
-    
-    // Check authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const body = await request.json();
-    const { regenerate = false } = body;
+    const { mode = 'zen' } = body;
+    
+    // Validate mode
+    if (mode !== 'zen' && mode !== 'warrior') {
+      return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
+    }
     
     const today = new Date().toISOString().split('T')[0];
-
-    // Get user settings
-    const { data: settings, error: settingsError } = await supabase
-      .from('settings')
-      .select('*')
-      .eq('user_id', user.id)
-      .single();
-
-    if (settingsError || !settings) {
-      return NextResponse.json({ error: 'Settings not found' }, { status: 404 });
-    }
-
-    // Get current streak
-    const { data: streak } = await supabase
-      .from('streaks')
-      .select('current_streak')
-      .eq('user_id', user.id)
-      .single();
-
-    // Check generation quota
-    const { data: quota } = await supabase
-      .from('generation_quotas')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .single();
-
-    const currentGenerations = quota?.generations_used || 0;
-    const maxGenerations = quota?.max_generations || 2;
-
-    if (currentGenerations >= maxGenerations) {
-      return NextResponse.json({ 
-        error: 'Daily generation limit reached',
-        quota: { used: currentGenerations, max: maxGenerations }
-      }, { status: 429 });
-    }
-
-    // Check if card already exists for today
+    
+    // Check if we already have a card for this mode today
     const { data: existingCard } = await supabase
       .from('cards')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', DEMO_USER_ID)
       .eq('date', today)
+      .eq('mode', mode)
       .single();
 
-    if (existingCard && !regenerate) {
+    if (existingCard) {
       return NextResponse.json({ 
-        error: 'Card already exists for today',
+        error: 'Card already generated for today',
         card: existingCard 
       }, { status: 409 });
     }
 
-    // Generate the card using AI
+    // Generate the card using AI with selected mode
     const cardInput = {
-      mode: settings.mode,
-      themes: settings.themes,
-      language: settings.language,
-      tone: settings.tone,
-      audience: settings.audience,
-      streak: streak?.current_streak || 0,
+      mode: mode as 'zen' | 'warrior',
+      themes: mode === 'zen' ? ['mindfulness', 'peace'] : ['strength', 'motivation'],
+      language: 'en',
+      tone: (mode === 'zen' ? 'soft' : 'strong') as 'soft' | 'balanced' | 'strong',
+      audience: 'prefer_not_to_say' as const,
+      streak: 0,
     };
 
     const generatedCard = await generateCard(cardInput);
 
-    // Save or update the card
-    const cardData = {
-      user_id: user.id,
-      date: today,
-      quote_text: generatedCard.quote.text,
-      quote_author: generatedCard.quote.author,
-      reflection: generatedCard.reflection,
-      action: generatedCard.action,
-      mantra: generatedCard.mantra,
-      mode: generatedCard.mode,
-      audience_used: generatedCard.audience_used,
-      themes: settings.themes,
-      completed: false,
-    };
-
-    let savedCard;
-    if (existingCard) {
-      // Update existing card
-      const { data, error } = await supabase
-        .from('cards')
-        .update(cardData)
-        .eq('id', existingCard.id)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      savedCard = data;
-    } else {
-      // Insert new card
-      const { data, error } = await supabase
-        .from('cards')
-        .insert(cardData)
-        .select()
-        .single();
-      
-      if (error) throw error;
-      savedCard = data;
-    }
-
-    // Update generation quota
-    if (quota) {
-      await supabase
-        .from('generation_quotas')
-        .update({ generations_used: currentGenerations + 1 })
-        .eq('id', quota.id);
-    } else {
-      await supabase
-        .from('generation_quotas')
-        .insert({
-          user_id: user.id,
-          date: today,
-          generations_used: 1,
-          max_generations: 2,
-        });
-    }
-
-    // Log telemetry
-    await supabase
-      .from('telemetry')
+    // Save the card to Supabase
+    const { data: savedCard, error } = await supabase
+      .from('cards')
       .insert({
-        user_id: user.id,
-        event_type: regenerate ? 'card_regenerated' : 'card_generated',
-        event_data: { 
-          card_id: savedCard.id,
-          mode: settings.mode,
-          themes: settings.themes 
-        },
-      });
+        user_id: DEMO_USER_ID,
+        date: today,
+        quote_text: generatedCard.quote.text,
+        quote_author: generatedCard.quote.author,
+        reflection: generatedCard.reflection,
+        action: generatedCard.action,
+        mantra: generatedCard.mantra,
+        mode: generatedCard.mode,
+        audience_used: generatedCard.audience_used,
+        themes: cardInput.themes,
+        completed: false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Database error:', error);
+      return NextResponse.json({ error: 'Failed to save card' }, { status: 500 });
+    }
 
     return NextResponse.json({ 
-      card: savedCard,
-      quota: { used: currentGenerations + 1, max: maxGenerations }
+      card: savedCard
     });
 
   } catch (error) {
