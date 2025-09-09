@@ -11,14 +11,12 @@ const supabase = createClient<Database>(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-interface Params {
-  params: {
-    id: string;
-  };
-}
-
-export async function POST(request: NextRequest, { params }: Params) {
+export async function POST(
+  request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
+    const params = await context.params;
     const cardId = params.id;
 
     // Update the card as completed
@@ -46,4 +44,4 @@ export async function POST(request: NextRequest, { params }: Params) {
       { status: 500 }
     );
   }
-} 
+}

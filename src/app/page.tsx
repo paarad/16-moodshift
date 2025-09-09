@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { DailyCard } from '@/components/DailyCard';
 import { Sparkles, Zap, Heart, Twitter } from 'lucide-react';
-import { Card as CardType } from '@/types/database';
+import type { Database } from '@/types/database';
 
+type CardType = Database['public']['Tables']['cards']['Row'];
 type ModeType = 'zen' | 'warrior';
 
 export default function HomePage() {
@@ -131,7 +132,7 @@ export default function HomePage() {
           {/* Zen Card Section */}
           <div className="space-y-4">
             <div className="text-center">
-              <h3 className="text-xl font-semibold text-blue-600 mb-2">🧘 Zen Mode</h3>
+              <h3 className="text-xl font-semibold text-blue-600 mb-2">�� Zen Mode</h3>
               <p className="text-slate-600 text-sm">Calm & peaceful</p>
             </div>
             

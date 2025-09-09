@@ -1,137 +1,298 @@
-export type MoodMode = 'zen' | 'warrior';
-export type AudienceType = 'woman' | 'man' | 'non_binary' | 'prefer_not_to_say' | 'custom';
-export type ToneType = 'soft' | 'balanced' | 'strong';
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-export interface Profile {
-  id: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Settings {
-  id: string;
-  user_id: string;
-  mode: MoodMode;
-  audience: AudienceType;
-  tone: ToneType;
-  delivery_time: string;
-  timezone: string;
-  themes: string[];
-  language: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Card {
-  id: string;
-  user_id: string;
-  date: string;
-  quote_text: string;
-  quote_author: string | null;
-  reflection: string;
-  action: string;
-  mantra: string;
-  mode: MoodMode;
-  audience_used: AudienceType | null;
-  themes: string[];
-  completed: boolean;
-  created_at: string;
-}
-
-export interface Streak {
-  id: string;
-  user_id: string;
-  current_streak: number;
-  longest_streak: number;
-  last_completion_date: string | null;
-  updated_at: string;
-}
-
-export interface Telemetry {
-  id: string;
-  user_id: string;
-  event_type: string;
-  event_data: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface GenerationQuota {
-  id: string;
-  user_id: string;
-  date: string;
-  generations_used: number;
-  max_generations: number;
-  created_at: string;
-}
-
-// AI Generation types
-export interface CardGenerationInput {
-  mode: MoodMode;
-  themes: string[];
-  language: string;
-  tone: ToneType;
-  audience: AudienceType;
-  streak: number;
-}
-
-export interface CardGenerationOutput {
-  quote: {
-    text: string;
-    author: string;
-  };
-  reflection: string;
-  action: string;
-  mantra: string;
-  mode: MoodMode;
-  audience_used: AudienceType;
-}
-
-// Supabase Database types
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.4"
+  }
   public: {
     Tables: {
-      profiles: {
-        Row: Profile;
-        Insert: Omit<Profile, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Profile, 'id' | 'created_at'>>;
-      };
-      settings: {
-        Row: Settings;
-        Insert: Omit<Settings, 'id' | 'created_at' | 'updated_at'>;
-        Update: Partial<Omit<Settings, 'id' | 'user_id' | 'created_at'>>;
-      };
       cards: {
-        Row: Card;
-        Insert: Omit<Card, 'id' | 'created_at'>;
-        Update: Partial<Omit<Card, 'id' | 'user_id' | 'created_at'>>;
-      };
-      streaks: {
-        Row: Streak;
-        Insert: Omit<Streak, 'id' | 'updated_at'>;
-        Update: Partial<Omit<Streak, 'id' | 'user_id'>>;
-      };
-      telemetry: {
-        Row: Telemetry;
-        Insert: Omit<Telemetry, 'id' | 'created_at'>;
-        Update: never;
-      };
-      generation_quotas: {
-        Row: GenerationQuota;
-        Insert: Omit<GenerationQuota, 'id' | 'created_at'>;
-        Update: Partial<Omit<GenerationQuota, 'id' | 'user_id' | 'date' | 'created_at'>>;
-      };
-    };
+        Row: {
+          action: string
+          audience_used: Database["public"]["Enums"]["audience_type"] | null
+          completed: boolean | null
+          created_at: string
+          date: string
+          id: string
+          mantra: string
+          mode: Database["public"]["Enums"]["mood_mode"]
+          quote_author: string | null
+          quote_text: string
+          reflection: string
+          themes: string[]
+          user_id: string
+        }
+        Insert: {
+          action: string
+          audience_used?: Database["public"]["Enums"]["audience_type"] | null
+          completed?: boolean | null
+          created_at?: string
+          date: string
+          id?: string
+          mantra: string
+          mode: Database["public"]["Enums"]["mood_mode"]
+          quote_author?: string | null
+          quote_text: string
+          reflection: string
+          themes: string[]
+          user_id: string
+        }
+        Update: {
+          action?: string
+          audience_used?: Database["public"]["Enums"]["audience_type"] | null
+          completed?: boolean | null
+          created_at?: string
+          date?: string
+          id?: string
+          mantra?: string
+          mode?: Database["public"]["Enums"]["mood_mode"]
+          quote_author?: string | null
+          quote_text?: string
+          reflection?: string
+          themes?: string[]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          audience: Database["public"]["Enums"]["audience_type"] | null
+          created_at: string
+          delivery_time: string
+          id: string
+          language: string
+          mode: Database["public"]["Enums"]["mood_mode"]
+          themes: string[]
+          timezone: string
+          tone: Database["public"]["Enums"]["tone_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          audience?: Database["public"]["Enums"]["audience_type"] | null
+          created_at?: string
+          delivery_time?: string
+          id?: string
+          language?: string
+          mode?: Database["public"]["Enums"]["mood_mode"]
+          themes?: string[]
+          timezone?: string
+          tone?: Database["public"]["Enums"]["tone_type"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          audience?: Database["public"]["Enums"]["audience_type"] | null
+          created_at?: string
+          delivery_time?: string
+          id?: string
+          language?: string
+          mode?: Database["public"]["Enums"]["mood_mode"]
+          themes?: string[]
+          timezone?: string
+          tone?: Database["public"]["Enums"]["tone_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
     Views: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Functions: {
-      [_ in never]: never;
-    };
+      [_ in never]: never
+    }
     Enums: {
-      mood_mode: MoodMode;
-      audience_type: AudienceType;
-      tone_type: ToneType;
-    };
-  };
-} 
+      audience_type:
+        | "woman"
+        | "man"
+        | "non_binary"
+        | "prefer_not_to_say"
+        | "custom"
+      mood_mode: "zen" | "warrior"
+      tone_type: "soft" | "balanced" | "strong"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      audience_type: [
+        "woman",
+        "man",
+        "non_binary",
+        "prefer_not_to_say",
+        "custom",
+      ],
+      mood_mode: ["zen", "warrior"],
+      tone_type: ["soft", "balanced", "strong"],
+    },
+  },
+} as const

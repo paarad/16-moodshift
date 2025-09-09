@@ -1,9 +1,29 @@
 import OpenAI from 'openai';
-import { CardGenerationInput, CardGenerationOutput } from '@/types/database';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY!,
 });
+
+export interface CardGenerationInput {
+  mode: 'zen' | 'warrior';
+  themes: string[];
+  language: string;
+  tone: 'soft' | 'balanced' | 'strong';
+  audience: 'woman' | 'man' | 'non_binary' | 'prefer_not_to_say' | 'custom';
+  streak: number;
+}
+
+export interface CardGenerationOutput {
+  quote: {
+    text: string;
+    author: string;
+  };
+  reflection: string;
+  action: string;
+  mantra: string;
+  mode: 'zen' | 'warrior';
+  audience_used: string;
+}
 
 export async function generateCard(input: CardGenerationInput): Promise<CardGenerationOutput> {
   const { mode, themes, language, tone, audience, streak } = input;
@@ -18,33 +38,19 @@ RULES:
 - If quote author is unknown, return "Unknown"
 
 MODES:
-- Zen: Calm, mindful, restorative energy. Actions focus on breath, posture, awareness, tiny check-ins. Mantras like "Inhale. Soften. Focus."
-- Warrior: Focused, decisive, resilient energy. Actions focus on sprint, commit, send, push. Mantras like "One clean rep."
+- ZEN: Calm, peaceful, mindful, introspective
+- WARRIOR: Bold, energetic, confident, action-oriented
 
-TONE ADJUSTMENTS:
-- Soft: Gentle, nurturing language
-- Balanced: Clear, supportive language  
-- Strong: Direct, motivating language
+THEMES: ${themes.join(', ')}
 
-AUDIENCE: Light adjustments in tone or pronouns for ${audience}, but no stereotypes or assumptions.
+TONE: ${tone}
+AUDIENCE: ${audience}
+LANGUAGE: ${language}
+STREAK: ${streak} days
 
-THEMES: Focus on ${themes.join(', ')}
-STREAK: User is on a ${streak}-day streak - acknowledge their progress subtly.`;
+Generate a complete card with quote, reflection, action, and mantra.`;
 
-  const userPrompt = `Generate a ${mode} mode card in ${language} with ${tone} tone for themes: ${themes.join(', ')}.
-
-Return ONLY valid JSON in this exact format:
-{
-  "quote": {
-    "text": "...",
-    "author": "..."
-  },
-  "reflection": "...",
-  "action": "...",
-  "mantra": "...",
-  "mode": "${mode}",
-  "audience_used": "${audience}"
-}`;
+  const userPrompt = `Generate a ${mode} mode card for someone on a ${streak}-day streak.`;
 
   try {
     const completion = await openai.chat.completions.create({
@@ -62,56 +68,112 @@ Return ONLY valid JSON in this exact format:
       throw new Error('No content generated');
     }
 
-    // Parse the JSON response
-    const result = JSON.parse(content) as CardGenerationOutput;
+    // Parse the AI response
+    const lines = content.split('\n').filter(line => line.trim());
     
-    // Validate the response structure
-    if (!result.quote?.text || !result.reflection || !result.action || !result.mantra) {
-      throw new Error('Invalid response structure');
+    let quoteText = '';
+    let quoteAuthor = 'Unknown';
+    let reflection = '';
+    let action = '';
+    let mantra = '';
+
+    let currentSection = '';
+    
+    for (const line of lines) {
+      const lowerLine = line.toLowerCase().trim();
+      
+      if (lowerLine.includes('quote:') || lowerLine.includes('"')) {
+        currentSection = 'quote';
+        const quoteMatch = line.match(/"([^"]+)"/);
+        if (quoteMatch) {
+          quoteText = quoteMatch[1];
+        }
+        // Look for author after quote
+        const authorMatch = line.match(/—\s*(.+)$/) || line.match(/-\s*(.+)$/);
+        if (authorMatch) {
+          quoteAuthor = authorMatch[1].trim();
+        }
+      } else if (lowerLine.includes('reflection:')) {
+        currentSection = 'reflection';
+        reflection = line.replace(/reflection:\s*/i, '').trim();
+      } else if (lowerLine.includes('action:')) {
+        currentSection = 'action';
+        action = line.replace(/action:\s*/i, '').trim();
+      } else if (lowerLine.includes('mantra:')) {
+        currentSection = 'mantra';
+        mantra = line.replace(/mantra:\s*/i, '').trim();
+      } else if (currentSection === 'reflection' && reflection) {
+        reflection += ' ' + line.trim();
+      } else if (currentSection === 'action' && action) {
+        action += ' ' + line.trim();
+      } else if (currentSection === 'mantra' && mantra) {
+        mantra += ' ' + line.trim();
+      }
     }
 
-    // Validate character limits
-    if (result.quote.text.length > 160) {
-      throw new Error('Quote too long');
-    }
-    if (result.reflection.length > 500) {
-      throw new Error('Reflection too long');
-    }
-    if (result.action.length > 140) {
-      throw new Error('Action too long');
-    }
-    if (result.mantra.length > 60) {
-      throw new Error('Mantra too long');
+    // Fallback parsing if structured format fails
+    if (!quoteText && lines.length > 0) {
+      const firstLine = lines[0];
+      const quoteMatch = firstLine.match(/"([^"]+)"/);
+      if (quoteMatch) {
+        quoteText = quoteMatch[1];
+        quoteAuthor = firstLine.match(/—\s*(.+)$/)?.[1]?.trim() || 'Unknown';
+      } else {
+        quoteText = firstLine;
+      }
     }
 
-    return result;
+    if (!reflection && lines.length > 1) {
+      reflection = lines[1];
+    }
+    if (!action && lines.length > 2) {
+      action = lines[2];
+    }
+    if (!mantra && lines.length > 3) {
+      mantra = lines[3];
+    }
+
+    // Ensure we have all required fields
+    if (!quoteText) quoteText = mode === 'zen' ? 'Peace begins with a smile.' : 'Success is not final, failure is not fatal.';
+    if (!reflection) reflection = mode === 'zen' ? 'Take a moment to breathe deeply and center yourself.' : 'You have the strength to overcome any challenge.';
+    if (!action) action = mode === 'zen' ? 'Take 5 deep breaths right now.' : 'Stand tall and say "I am capable" out loud.';
+    if (!mantra) mantra = mode === 'zen' ? 'I am peaceful.' : 'I am strong.';
+
+    return {
+      quote: {
+        text: quoteText,
+        author: quoteAuthor
+      },
+      reflection,
+      action,
+      mantra,
+      mode,
+      audience_used: audience
+    };
+
   } catch (error) {
     console.error('AI generation error:', error);
     
-    // Fallback response
-    return {
-      quote: {
-        text: mode === 'zen' ? 'Peace comes from within. Do not seek it without.' : 'Victory belongs to the most persevering.',
-        author: mode === 'zen' ? 'Buddha' : 'Napoleon Bonaparte'
+    // Fallback content
+    const fallbackContent = {
+      zen: {
+        quote: { text: 'Peace begins with a smile.', author: 'Mother Teresa' },
+        reflection: 'Take a moment to breathe deeply and center yourself. Find peace in the present moment.',
+        action: 'Take 5 deep breaths right now.',
+        mantra: 'I am peaceful.'
       },
-      reflection: mode === 'zen' 
-        ? 'Today is a chance to pause, breathe, and reconnect with your inner calm. Every moment offers an opportunity to find peace.'
-        : 'Today is your arena. Every challenge is a chance to grow stronger. Step forward with purpose and determination.',
-      action: mode === 'zen' 
-        ? 'Take 3 deep breaths. Feel your shoulders relax with each exhale.'
-        : 'Write down one goal for today. Take the first action step right now.',
-      mantra: mode === 'zen' ? 'Breathe. Be present. Be peace.' : 'I am strong. I am focused. I act.',
+      warrior: {
+        quote: { text: 'Success is not final, failure is not fatal.', author: 'Winston Churchill' },
+        reflection: 'You have the strength to overcome any challenge. Believe in your power.',
+        action: 'Stand tall and say "I am capable" out loud.',
+        mantra: 'I am strong.'
+      }
+    };
+
+    return {
+      ...fallbackContent[mode],
       mode,
       audience_used: audience
     };
   }
 }
-
-export async function validateApiKey(): Promise<boolean> {
-  try {
-    await openai.models.list();
-    return true;
-  } catch {
-    return false;
-  }
-} 

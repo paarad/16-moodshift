@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { generateCard } from '@/lib/ai';
-import { Database } from '@/types/database';
+import type { Database } from '@/types/database';
 
 // Demo user ID for testing without auth
 const DEMO_USER_ID = '00000000-0000-0000-0000-000000000000';
@@ -16,14 +16,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { mode = 'zen' } = body;
-    
+
     // Validate mode
     if (mode !== 'zen' && mode !== 'warrior') {
       return NextResponse.json({ error: 'Invalid mode' }, { status: 400 });
     }
-    
+
     const today = new Date().toISOString().split('T')[0];
-    
+
     // Check if we already have a card for this mode today
     const { data: existingCard } = await supabase
       .from('cards')
@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existingCard) {
-      return NextResponse.json({ 
+      return NextResponse.json({
         error: 'Card already generated for today',
-        card: existingCard 
+        card: existingCard
       }, { status: 409 });
     }
 
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     const generatedCard = await generateCard(cardInput);
 
-    // Save the card to Supabase
+    // Save the card to Supabase with proper type casting
     const { data: savedCard, error } = await supabase
       .from('cards')
       .insert({
@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         action: generatedCard.action,
         mantra: generatedCard.mantra,
         mode: generatedCard.mode,
-        audience_used: generatedCard.audience_used,
+        audience_used: generatedCard.audience_used as Database['public']['Enums']['audience_type'],
         themes: cardInput.themes,
         completed: false,
       })
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to save card' }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       card: savedCard
     });
 
@@ -87,4 +87,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}
